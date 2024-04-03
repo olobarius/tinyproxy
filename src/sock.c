@@ -36,6 +36,10 @@
 #include "loop.h"
 #include "sblist.h"
 
+/* 202404022022: include pthread.h so we can use the mutex */
+#include <pthread.h>
+static pthread_mutex_t bind_index_lock = PTHREAD_MUTEX_INITIALIZER;
+
 /*
  * Return a human readable error for getaddrinfo() and getnameinfo().
  */
@@ -107,7 +111,13 @@ bind_socket_list (int sockfd, sblist *addresses, int family)
         size_t nb_addresses = sblist_getsize(addresses);
         size_t i;
 
-        for (i = 0; i < nb_addresses; i++) {
+        /* 202404022016: round robin outgoing ips */
+        pthread_mutex_lock(&bind_index_lock);
+        i = config->bind_index++;
+        if(config->bind_index >= nb_addresses) config->bind_index = 0;
+        pthread_mutex_unlock(&bind_index_lock);
+
+        for (; i < nb_addresses; i++) {
                 const char *address = *(const char **)sblist_get(addresses, i);
                 if (bind_socket(sockfd, address, family) >= 0) {
                         log_message(LOG_INFO, "Bound to %s", address);
