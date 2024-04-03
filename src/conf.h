@@ -109,6 +109,8 @@ struct config_s {
          * Extra headers to be added to outgoing HTTP requests.
          */
         sblist* add_headers;
+
+        size_t bind_index; /* 202404021900: if multiple outgoing ips are set in bind_addrs, bind_index will be used to round robin them in bind_socket_list for each outgoing connection */
 };
 
 extern int reload_config_file (const char *config_fname, struct config_s *conf);
