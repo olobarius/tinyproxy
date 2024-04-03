@@ -1,3 +1,7 @@
+# Changelog (olobarius)
+Allows up to 2048 Bind IP statements in the config file
+which outgoing connections will use for round robin
+
 # Tinyproxy
 
 Tinyproxy is a small, efficient HTTP/SSL proxy daemon released under the
