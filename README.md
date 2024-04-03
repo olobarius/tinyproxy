@@ -1,7 +1,3 @@
-# Changelog (olobarius)
-Allows up to 2048 Bind IP statements in the config file
-which outgoing connections will use for round robin
-
 # Tinyproxy
 
 Tinyproxy is a small, efficient HTTP/SSL proxy daemon released under the
@@ -94,3 +90,7 @@ and create a [pull request](https://github.com/tinyproxy/tinyproxy/pulls).
 You can meet developers and users to discuss development,
 patches and deployment issues in the `#tinyproxy` IRC channel on
 libera (`irc.libera.chat`).
+
+# Changelog (olobarius)
+Allows up to 2048 Bind IP statements in the config file
+which outgoing connections will use for round robin
