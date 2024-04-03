@@ -486,6 +486,7 @@ static void initialize_config_defaults (struct config_s *conf)
         conf->logf_name = NULL;
         conf->pidpath = NULL;
         conf->maxclients = 100;
+	conf->bind_index = 0; /* 202404021957: init bind_index with sane default */
 }
 
 /**
@@ -814,7 +815,7 @@ static HANDLE_FUNC (handle_bind)
         }
 
         if (conf->bind_addrs == NULL) {
-               conf->bind_addrs = sblist_new(sizeof(char*), 16);
+               conf->bind_addrs = sblist_new(sizeof(char*),  2048); /* 202404030033: allow up to 2048 IPs */
                if (conf->bind_addrs == NULL) {
                        CP_WARN ("Could not create a list "
                                    "of bind addresses.", "");
