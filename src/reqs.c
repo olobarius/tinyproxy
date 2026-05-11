@@ -316,6 +316,17 @@ static int send_connect_method_response (struct conn_s *connptr)
                                       connptr->protocol.minor);
 }
 
+/* determine whether a hostname with optional trailing colon/port is the
+   stathost */
+static int is_stathost (const char* host)
+{
+        const char *p = config->stathost;
+        const char *q = host;
+        if (!p || !q) return 0;
+        while (*p && *(p++) == *(q++));
+        return *p == 0 && (*q == 0 || *q == ':');
+}
+
 /*
  * Break the request line apart and figure out where to connect and
  * build a new request line. Finally connect to the remote server.
@@ -381,6 +392,16 @@ BAD_REQUEST_ERROR:
                 indicate_http_error (connptr, 400, "Bad Request",
                                      "detail", "Request has an invalid format",
                                      "url", url, NULL);
+                goto fail;
+        }
+
+        /*
+         * Check to see if they're requesting the stat host
+         */
+        if (is_stathost (pseudomap_find (hashofheaders, "host"))) {
+got_stathost:
+                log_message (LOG_NOTICE, "Request for the stathost.");
+                connptr->show_stats = TRUE;
                 goto fail;
         }
 
@@ -497,19 +518,11 @@ BAD_REQUEST_ERROR:
                 }
         }
 #endif
-
-
-        /*
-         * Check to see if they're requesting the stat host
-         */
-        if (config->stathost && strcmp (config->stathost, request->host) == 0) {
-                log_message (LOG_NOTICE, "Request for the stathost.");
-                connptr->show_stats = TRUE;
-                goto fail;
-        }
+        /* check whether hostname from url is the stathost */
+        if (is_stathost (request->host))
+                goto got_stathost;
 
         safefree (url);
-
         return request;
 
 fail:
@@ -629,6 +642,11 @@ add_header_to_connection (pseudomap *hashofheaders, char *header, size_t len)
 
         /* Calculate the new length of just the data */
         len -= sep - header - 1;
+
+        /* prevent multiple content-length headers from being inserted */
+        if (!strcasecmp(header, "content-length") &&
+            pseudomap_find (hashofheaders, "content-length"))
+                return 0;
 
         return pseudomap_append (hashofheaders, header, sep);
 }
@@ -904,8 +922,13 @@ process_client_headers (struct conn_s *connptr, pseudomap *hashofheaders)
         connptr->content_length.client = get_content_length (hashofheaders);
 
         /* Check whether client sends chunked data. */
-        if (connptr->content_length.client == -1 && is_chunked_transfer (hashofheaders))
+        if (is_chunked_transfer (hashofheaders)) {
+                if (connptr->content_length.client != -1)
+                        /* request smuggling, see GH issue #609 */
+                        pseudomap_remove (hashofheaders, "content-length");
+
                 connptr->content_length.client = -2;
+        }
 
         /*
          * See if there is a "Connection" header.  If so, we need to do a bit
@@ -1630,7 +1653,7 @@ void handle_connection (struct conn_s *connptr, union sockaddr_union* addr)
 
                 if (!authstring && config->stathost) {
                         authstring = pseudomap_find (hashofheaders, "host");
-                        if (authstring && !strncmp(authstring, config->stathost, strlen(config->stathost))) {
+                        if (authstring && is_stathost(authstring)) {
                                 authstring = pseudomap_find (hashofheaders, "authorization");
                                 stathost_connect = 1;
                         } else authstring = 0;
